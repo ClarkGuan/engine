@@ -11,8 +11,9 @@
 #include "third_party/skia/include/core/SkShader.h"
 #include "third_party/skia/include/core/SkString.h"
 #include "third_party/tonic/typed_data/dart_byte_data.h"
+#include "third_party/tonic/typed_data/float32_list.h"
 
-namespace blink {
+namespace flutter {
 
 // Indices for 32bit values.
 constexpr int kIsAntiAliasIndex = 0;
@@ -35,7 +36,8 @@ constexpr size_t kDataByteCount = 75;  // 4 * (last index + 1)
 
 // Indices for objects.
 constexpr int kShaderIndex = 0;
-constexpr int kObjectCount = 1;  // One larger than largest object index.
+constexpr int kColorFilterMatrixIndex = 1;
+constexpr int kObjectCount = 2;  // One larger than largest object index.
 
 // Must be kept in sync with the default in painting.dart.
 constexpr uint32_t kColorDefault = 0xFF000000;
@@ -50,7 +52,7 @@ constexpr double kStrokeMiterLimitDefault = 4.0;
 
 // A color matrix which inverts colors.
 // clang-format off
-constexpr SkScalar invert_colors[20] = {
+constexpr float invert_colors[20] = {
   -1.0,    0,    0, 1.0, 0,
      0, -1.0,    0, 1.0, 0,
      0,    0, -1.0, 1.0, 0,
@@ -61,18 +63,76 @@ constexpr SkScalar invert_colors[20] = {
 // Must be kept in sync with the MaskFilter private constants in painting.dart.
 enum MaskFilterType { Null, Blur };
 
+// Must be kept in sync with the ColorFilter private constants in painting.dart.
+enum ColorFilterType {
+  None,
+  Mode,
+  Matrix,
+  LinearToSRGBGamma,
+  SRGBToLinearGamma
+};
+
+// Flutter still defines the matrix to be biased by 255 in the last column
+// (translate). skia is normalized, treating the last column as 0...1, so we
+// post-scale here before calling the skia factory.
+static sk_sp<SkColorFilter> MakeColorMatrixFilter255(const float array[20]) {
+  float tmp[20];
+  memcpy(tmp, array, sizeof(tmp));
+  tmp[4] *= 1.0f / 255;
+  tmp[9] *= 1.0f / 255;
+  tmp[14] *= 1.0f / 255;
+  tmp[19] *= 1.0f / 255;
+  return SkColorFilters::Matrix(tmp);
+}
+
+sk_sp<SkColorFilter> ExtractColorFilter(const uint32_t* uint_data,
+                                        Dart_Handle* values) {
+  switch (uint_data[kColorFilterIndex]) {
+    case Mode: {
+      SkColor color = uint_data[kColorFilterColorIndex];
+      SkBlendMode blend_mode =
+          static_cast<SkBlendMode>(uint_data[kColorFilterBlendModeIndex]);
+
+      return SkColorFilters::Blend(color, blend_mode);
+    }
+    case Matrix: {
+      Dart_Handle matrixHandle = values[kColorFilterMatrixIndex];
+      if (!Dart_IsNull(matrixHandle)) {
+        FML_DCHECK(Dart_IsList(matrixHandle));
+        intptr_t length = 0;
+        Dart_ListLength(matrixHandle, &length);
+
+        FML_CHECK(length == 20);
+
+        tonic::Float32List decoded(matrixHandle);
+        return MakeColorMatrixFilter255(decoded.data());
+      }
+      return nullptr;
+    }
+    case LinearToSRGBGamma: {
+      return SkColorFilters::LinearToSRGBGamma();
+    }
+    case SRGBToLinearGamma: {
+      return SkColorFilters::SRGBToLinearGamma();
+    }
+    default:
+      FML_DLOG(ERROR) << "Out of range value received for kColorFilterIndex.";
+      return nullptr;
+  }
+}
+
 Paint::Paint(Dart_Handle paint_objects, Dart_Handle paint_data) {
   is_null_ = Dart_IsNull(paint_data);
   if (is_null_)
     return;
 
+  Dart_Handle values[kObjectCount];
   if (!Dart_IsNull(paint_objects)) {
     FML_DCHECK(Dart_IsList(paint_objects));
     intptr_t length = 0;
     Dart_ListLength(paint_objects, &length);
 
     FML_CHECK(length == kObjectCount);
-    Dart_Handle values[kObjectCount];
     if (Dart_IsError(Dart_ListGetRange(paint_objects, 0, kObjectCount, values)))
       return;
 
@@ -128,22 +188,19 @@ Paint::Paint(Dart_Handle paint_objects, Dart_Handle paint_data) {
     paint_.setFilterQuality(static_cast<SkFilterQuality>(filter_quality));
 
   if (uint_data[kColorFilterIndex] && uint_data[kInvertColorIndex]) {
-    SkColor color = uint_data[kColorFilterColorIndex];
-    SkBlendMode blend_mode =
-        static_cast<SkBlendMode>(uint_data[kColorFilterBlendModeIndex]);
-    sk_sp<SkColorFilter> color_filter =
-        SkColorFilter::MakeModeFilter(color, blend_mode);
-    sk_sp<SkColorFilter> invert_filter =
-        SkColorFilter::MakeMatrixFilterRowMajor255(invert_colors);
-    paint_.setColorFilter(invert_filter->makeComposed(color_filter));
+    sk_sp<SkColorFilter> color_filter = ExtractColorFilter(uint_data, values);
+    if (color_filter) {
+      sk_sp<SkColorFilter> invert_filter =
+          MakeColorMatrixFilter255(invert_colors);
+      paint_.setColorFilter(invert_filter->makeComposed(color_filter));
+    }
   } else if (uint_data[kInvertColorIndex]) {
-    paint_.setColorFilter(
-        SkColorFilter::MakeMatrixFilterRowMajor255(invert_colors));
+    paint_.setColorFilter(MakeColorMatrixFilter255(invert_colors));
   } else if (uint_data[kColorFilterIndex]) {
-    SkColor color = uint_data[kColorFilterColorIndex];
-    SkBlendMode blend_mode =
-        static_cast<SkBlendMode>(uint_data[kColorFilterBlendModeIndex]);
-    paint_.setColorFilter(SkColorFilter::MakeModeFilter(color, blend_mode));
+    sk_sp<SkColorFilter> color_filter = ExtractColorFilter(uint_data, values);
+    if (color_filter) {
+      paint_.setColorFilter(color_filter);
+    }
   }
 
   switch (uint_data[kMaskFilterIndex]) {
@@ -158,11 +215,11 @@ Paint::Paint(Dart_Handle paint_objects, Dart_Handle paint_data) {
   }
 }
 
-}  // namespace blink
+}  // namespace flutter
 
 namespace tonic {
 
-blink::Paint DartConverter<blink::Paint>::FromArguments(
+flutter::Paint DartConverter<flutter::Paint>::FromArguments(
     Dart_NativeArguments args,
     int index,
     Dart_Handle& exception) {
@@ -172,14 +229,14 @@ blink::Paint DartConverter<blink::Paint>::FromArguments(
   Dart_Handle paint_data = Dart_GetNativeArgument(args, index + 1);
   FML_DCHECK(!LogIfError(paint_data));
 
-  return blink::Paint(paint_objects, paint_data);
+  return flutter::Paint(paint_objects, paint_data);
 }
 
-blink::PaintData DartConverter<blink::PaintData>::FromArguments(
+flutter::PaintData DartConverter<flutter::PaintData>::FromArguments(
     Dart_NativeArguments args,
     int index,
     Dart_Handle& exception) {
-  return blink::PaintData();
+  return flutter::PaintData();
 }
 
 }  // namespace tonic

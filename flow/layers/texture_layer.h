@@ -6,13 +6,10 @@
 #define FLUTTER_FLOW_LAYERS_TEXTURE_LAYER_H_
 
 #include "flutter/flow/layers/layer.h"
-#include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/gpu/GrBackendSurface.h"
-#include "third_party/skia/include/gpu/GrContext.h"
-#include "third_party/skia/include/gpu/GrTexture.h"
-#include "third_party/skia/include/gpu/GrTypes.h"
+#include "third_party/skia/include/core/SkPoint.h"
+#include "third_party/skia/include/core/SkSize.h"
 
-namespace flow {
+namespace flutter {
 
 class TextureLayer : public Layer {
  public:
@@ -36,6 +33,6 @@ class TextureLayer : public Layer {
   FML_DISALLOW_COPY_AND_ASSIGN(TextureLayer);
 };
 
-}  // namespace flow
+}  // namespace flutter
 
 #endif  // FLUTTER_FLOW_LAYERS_TEXTURE_LAYER_H_

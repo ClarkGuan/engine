@@ -16,14 +16,14 @@
 
 #include "flutter/fml/trace_event.h"
 
-namespace blink {
+namespace flutter {
 
 void UniqueUnzipperTraits::Free(void* file) {
   unzClose(file);
 }
 
-ZipAssetStore::ZipAssetStore(std::string file_path)
-    : file_path_(std::move(file_path)) {
+ZipAssetStore::ZipAssetStore(std::string file_path, std::string directory)
+    : file_path_(std::move(file_path)), directory_(std::move(directory)) {
   BuildStatCache();
 }
 
@@ -33,18 +33,18 @@ UniqueUnzipper ZipAssetStore::CreateUnzipper() const {
   return UniqueUnzipper{::unzOpen2(file_path_.c_str(), nullptr)};
 }
 
-// |blink::AssetResolver|
+// |AssetResolver|
 bool ZipAssetStore::IsValid() const {
   return stat_cache_.size() > 0;
 }
 
-// |blink::AssetResolver|
+// |AssetResolver|
 std::unique_ptr<fml::Mapping> ZipAssetStore::GetAsMapping(
     const std::string& asset_name) const {
   TRACE_EVENT1("flutter", "ZipAssetStore::GetAsMapping", "name",
                asset_name.c_str());
-  auto found = stat_cache_.find(asset_name);
 
+  auto found = stat_cache_.find(directory_ + "/" + asset_name);
   if (found == stat_cache_.end()) {
     return nullptr;
   }
@@ -126,4 +126,4 @@ void ZipAssetStore::BuildStatCache() {
   } while (unzGoToNextFile(unzipper.get()) == UNZ_OK);
 }
 
-}  // namespace blink
+}  // namespace flutter

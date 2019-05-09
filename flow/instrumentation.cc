@@ -10,7 +10,7 @@
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
-namespace flow {
+namespace flutter {
 
 static const size_t kMaxSamples = 120;
 static const size_t kMaxFrameMarkers = 8;
@@ -61,6 +61,14 @@ fml::TimeDelta Stopwatch::MaxDelta() const {
       max_delta = laps_[i];
   }
   return max_delta;
+}
+
+fml::TimeDelta Stopwatch::AverageDelta() const {
+  fml::TimeDelta sum;  // default to 0
+  for (size_t i = 0; i < kMaxSamples; i++) {
+    sum = sum + laps_[i];
+  }
+  return sum / kMaxSamples;
 }
 
 // Initialize the SkSurface for drawing into. Draws the base background and any
@@ -303,4 +311,4 @@ int64_t CounterValues::GetMinValue() const {
   return min;
 }
 
-}  // namespace flow
+}  // namespace flutter

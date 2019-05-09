@@ -6,15 +6,14 @@
 library dart.ui;
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
+// this needs to be imported because painting.dart expects it this way
+import 'dart:collection' as collection;
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
-import 'dart:nativewrappers';
+import 'dart:nativewrappers'; // ignore: unused_import
+import 'dart:typed_data';
 
-// this needs to be imported because painting.dart expects it this way
-import 'dart:collection' as collection;
 
 import 'package:test/test.dart';
 
@@ -160,7 +159,7 @@ void main() {
         };
       });
 
-      final ByteData testData = new ByteData.view(new Uint8List(0).buffer);
+      final ByteData testData = ByteData.view(Uint8List(0).buffer);
       _dispatchPointerDataPacket(testData);
       expect(runZone, isNotNull);
       expect(runZone, same(innerZone));
@@ -246,6 +245,26 @@ void main() {
       expect(runZone, isNotNull);
       expect(runZone, same(innerZone));
       expect(textScaleFactor, equals(0.5));
+    });
+
+    test('onThemeBrightnessMode preserves callback zone', () {
+      Zone innerZone;
+      Zone runZone;
+      Brightness platformBrightness;
+
+      runZoned(() {
+        innerZone = Zone.current;
+        window.onPlatformBrightnessChanged = () {
+          runZone = Zone.current;
+          platformBrightness = window.platformBrightness;
+        };
+      });
+
+      window.onPlatformBrightnessChanged();
+      _updatePlatformBrightness('dark');
+      expect(runZone, isNotNull);
+      expect(runZone, same(innerZone));
+      expect(platformBrightness, equals(Brightness.dark));
     });
   });
 }

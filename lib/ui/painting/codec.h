@@ -17,7 +17,7 @@ namespace tonic {
 class DartLibraryNatives;
 }  // namespace tonic
 
-namespace blink {
+namespace flutter {
 
 // A handle to an SkCodec object.
 //
@@ -52,7 +52,7 @@ class MultiFrameCodec : public Codec {
       std::unique_ptr<DartPersistentValue> callback,
       fml::RefPtr<fml::TaskRunner> ui_task_runner,
       fml::WeakPtr<GrContext> resourceContext,
-      fml::RefPtr<flow::SkiaUnrefQueue> unref_queue,
+      fml::RefPtr<flutter::SkiaUnrefQueue> unref_queue,
       size_t trace_id);
 
   const std::unique_ptr<SkCodec> codec_;
@@ -65,21 +65,16 @@ class MultiFrameCodec : public Codec {
   size_t decodedCacheSize_;
 
   std::vector<SkCodec::FrameInfo> frameInfos_;
-  // A struct linking the bitmap of a frame to whether it's required to render
-  // other dependent frames.
-  struct DecodedFrame {
-    std::unique_ptr<SkBitmap> bitmap_ = nullptr;
-    const bool required_;
-
-    DecodedFrame(bool required);
-    ~DecodedFrame();
-  };
+  std::map<int, bool> requiredFrames_;
 
   // A cache of previously loaded bitmaps, indexed by the frame they belong to.
-  // Always holds at least the frames marked as required for reuse by
-  // [SkCodec::getFrameInfo()]. Will cache other non-essential frames until
-  // [decodedCacheSize_] : [compressedSize_] exceeds [decodedCacheRatioCap_].
-  std::map<int, std::unique_ptr<DecodedFrame>> frameBitmaps_;
+  // Caches all frames until [decodedCacheSize_] : [compressedSize_] exceeds
+  // [decodedCacheRatioCap_].
+  std::map<int, std::shared_ptr<SkBitmap>> frameBitmaps_;
+  // The last decoded frame that's required to decode any subsequent frames.
+  std::shared_ptr<SkBitmap> lastRequiredFrame_;
+  // The index of the last decoded required frame.
+  int lastRequiredFrameIndex_ = -1;
 
   FML_FRIEND_MAKE_REF_COUNTED(MultiFrameCodec);
   FML_FRIEND_REF_COUNTED_THREAD_SAFE(MultiFrameCodec);
@@ -101,6 +96,6 @@ class SingleFrameCodec : public Codec {
   FML_FRIEND_REF_COUNTED_THREAD_SAFE(SingleFrameCodec);
 };
 
-}  // namespace blink
+}  // namespace flutter
 
 #endif  // FLUTTER_LIB_UI_PAINTING_CODEC_H_

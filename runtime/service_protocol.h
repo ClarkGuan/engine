@@ -18,7 +18,7 @@
 #include "flutter/fml/task_runner.h"
 #include "rapidjson/document.h"
 
-namespace blink {
+namespace flutter {
 
 class ServiceProtocol {
  public:
@@ -27,6 +27,7 @@ class ServiceProtocol {
   static const fml::StringView kRunInViewExtensionName;
   static const fml::StringView kFlushUIThreadTasksExtensionName;
   static const fml::StringView kSetAssetBundlePathExtensionName;
+  static const fml::StringView kGetDisplayRefreshRateExtensionName;
 
   class Handler {
    public:
@@ -99,6 +100,6 @@ class ServiceProtocol {
   FML_DISALLOW_COPY_AND_ASSIGN(ServiceProtocol);
 };
 
-}  // namespace blink
+}  // namespace flutter
 
 #endif  // FLUTTER_RUNTIME_SERVICE_PROTOCOL_H_

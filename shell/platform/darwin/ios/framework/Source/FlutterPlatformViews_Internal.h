@@ -22,9 +22,12 @@
 
 // Stop delaying any active touch sequence (and let it arrive the embedded view).
 - (void)releaseGesture;
+
+// Prevent the touch sequence from ever arriving to the embedded view.
+- (void)blockGesture;
 @end
 
-namespace shell {
+namespace flutter {
 
 class IOSGLContext;
 class IOSSurface;
@@ -55,9 +58,16 @@ class FlutterPlatformViewsController {
 
   void PrerollCompositeEmbeddedView(int view_id);
 
+  // Returns the `FlutterPlatformView` object associated with the view_id.
+  //
+  // If the `FlutterPlatformViewsController` does not contain any `FlutterPlatformView` object or
+  // a `FlutterPlatformView` object asscociated with the view_id cannot be found, the method returns
+  // nil.
+  NSObject<FlutterPlatformView>* GetPlatformViewByID(int view_id);
+
   std::vector<SkCanvas*> GetCurrentCanvases();
 
-  SkCanvas* CompositeEmbeddedView(int view_id, const flow::EmbeddedViewParams& params);
+  SkCanvas* CompositeEmbeddedView(int view_id, const flutter::EmbeddedViewParams& params);
 
   // Discards all platform views instances and auxiliary resources.
   void Reset();
@@ -75,7 +85,15 @@ class FlutterPlatformViewsController {
   std::map<int64_t, fml::scoped_nsobject<NSObject<FlutterPlatformView>>> views_;
   std::map<int64_t, fml::scoped_nsobject<FlutterTouchInterceptingView>> touch_interceptors_;
   std::map<int64_t, std::unique_ptr<FlutterPlatformViewLayer>> overlays_;
+  // The GrContext that is currently used by all of the overlay surfaces.
+  // We track this to know when the GrContext for the Flutter app has changed
+  // so we can update the overlays with the new context.
+  GrContext* overlays_gr_context_;
   SkISize frame_size_;
+
+  // Method channel `OnDispose` calls adds the views to be disposed to this set to be disposed on
+  // the next frame.
+  std::unordered_set<int64_t> views_to_dispose_;
 
   // A vector of embedded view IDs according to their composition order.
   // The last ID in this vector belond to the that is composited on top of all others.
@@ -89,7 +107,11 @@ class FlutterPlatformViewsController {
   void OnCreate(FlutterMethodCall* call, FlutterResult& result);
   void OnDispose(FlutterMethodCall* call, FlutterResult& result);
   void OnAcceptGesture(FlutterMethodCall* call, FlutterResult& result);
+  void OnRejectGesture(FlutterMethodCall* call, FlutterResult& result);
 
+  void DetachUnusedLayers();
+  // Dispose the views in `views_to_dispose_`.
+  void DisposeViews();
   void EnsureOverlayInitialized(int64_t overlay_id);
   void EnsureGLOverlayInitialized(int64_t overlay_id,
                                   std::shared_ptr<IOSGLContext> gl_context,
@@ -98,6 +120,6 @@ class FlutterPlatformViewsController {
   FML_DISALLOW_COPY_AND_ASSIGN(FlutterPlatformViewsController);
 };
 
-}  // namespace shell
+}  // namespace flutter
 
 #endif  // FLUTTER_SHELL_PLATFORM_DARWIN_IOS_FRAMEWORK_SOURCE_FLUTTERPLATFORMVIEWS_INTERNAL_H_

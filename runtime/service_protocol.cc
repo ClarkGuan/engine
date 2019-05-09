@@ -18,7 +18,7 @@
 #include "rapidjson/writer.h"
 #include "third_party/dart/runtime/include/dart_tools_api.h"
 
-namespace blink {
+namespace flutter {
 
 const fml::StringView ServiceProtocol::kScreenshotExtensionName =
     "_flutter.screenshot";
@@ -30,6 +30,8 @@ const fml::StringView ServiceProtocol::kFlushUIThreadTasksExtensionName =
     "_flutter.flushUIThreadTasks";
 const fml::StringView ServiceProtocol::kSetAssetBundlePathExtensionName =
     "_flutter.setAssetBundlePath";
+const fml::StringView ServiceProtocol::kGetDisplayRefreshRateExtensionName =
+    "_flutter.getDisplayRefreshRate";
 
 static constexpr fml::StringView kViewIdPrefx = "_flutterView/";
 static constexpr fml::StringView kListViewsExtensionName = "_flutter.listViews";
@@ -45,6 +47,7 @@ ServiceProtocol::ServiceProtocol()
           kRunInViewExtensionName,
           kFlushUIThreadTasksExtensionName,
           kSetAssetBundlePathExtensionName,
+          kGetDisplayRefreshRateExtensionName,
       }),
       handlers_mutex_(fml::SharedMutex::Create()) {}
 
@@ -273,4 +276,4 @@ bool ServiceProtocol::HandleListViewsMethod(
   return true;
 }
 
-}  // namespace blink
+}  // namespace flutter
