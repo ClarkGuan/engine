@@ -2,90 +2,83 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-assert(is_fuchsia)
-
 import("//build/fuchsia/sdk.gni")
+import("//flutter/common/config.gni")
+import("//flutter/tools/fuchsia/dart.gni")
+import("//flutter/tools/fuchsia/fuchsia_host_bundle.gni")
 
-executable("fuchsia") {
-  output_name = "four_gate"
+if (is_fuchsia) {
+  product_suffix = ""
+  is_product = false
 
-  sources = [
-    "component.cc",
-    "component.h",
-    "compositor_context.cc",
-    "compositor_context.h",
-    "context_writer_bridge.cc",
-    "context_writer_bridge.h",
-    "engine.cc",
-    "engine.h",
-    "fuchsia_font_manager.cc",
-    "fuchsia_font_manager.h",
-    "isolate_configurator.cc",
-    "isolate_configurator.h",
-    "logging.h",
-    "loop.cc",
-    "loop.h",
-    "main.cc",
-    "platform_view.cc",
-    "platform_view.h",
-    "runner.cc",
-    "runner.h",
-    "runner_context.cc",
-    "runner_context.h",
-    "service_provider_dir.cc",
-    "service_provider_dir.h",
-    "session_connection.cc",
-    "session_connection.h",
-    "surface.cc",
-    "surface.h",
-    "task_observers.cc",
-    "task_observers.h",
-    "task_runner_adapter.cc",
-    "task_runner_adapter.h",
-    "thread.cc",
-    "thread.h",
-    "unique_fdio_ns.h",
-    "vsync_recorder.cc",
-    "vsync_recorder.h",
-    "vsync_waiter.cc",
-    "vsync_waiter.h",
-    "vulkan_surface.cc",
-    "vulkan_surface.h",
-    "vulkan_surface_pool.cc",
-    "vulkan_surface_pool.h",
-    "vulkan_surface_producer.cc",
-    "vulkan_surface_producer.h",
-  ]
+  if (flutter_runtime_mode == "release") {
+    product_suffix = "product_"
+    is_product = true
+  }
 
-  deps = [
-    "$flutter_root/common",
-    "$flutter_root/flow",
-    "$flutter_root/fml",
-    "$flutter_root/lib/ui",
-    "$flutter_root/runtime",
-    "$flutter_root/runtime:libdart",
-    "$flutter_root/shell/common",
-    "$flutter_root/vulkan",
-    "$fuchsia_sdk_root/fidl:fuchsia.fonts",
-    "$fuchsia_sdk_root/fidl:fuchsia.images",
-    "$fuchsia_sdk_root/fidl:fuchsia.io",
-    "$fuchsia_sdk_root/fidl:fuchsia.modular",
-    "$fuchsia_sdk_root/fidl:fuchsia.sys",
-    "$fuchsia_sdk_root/fidl:fuchsia.ui.app",
-    "$fuchsia_sdk_root/fidl:fuchsia.ui.scenic",
-    "$fuchsia_sdk_root/pkg:async-cpp",
-    "$fuchsia_sdk_root/pkg:async-loop",
-    "$fuchsia_sdk_root/pkg:async-loop-cpp",
-    "$fuchsia_sdk_root/pkg:fdio",
-    "$fuchsia_sdk_root/pkg:fidl_cpp",
-    "$fuchsia_sdk_root/pkg:scenic_cpp",
-    "$fuchsia_sdk_root/pkg:syslog",
-    "$fuchsia_sdk_root/pkg:zx",
-    "$fuchsia_sdk_root/pkg/lib/sys/cpp",
-    "$fuchsia_sdk_root/pkg/lib/vfs/cpp",
-    "dart-pkg/fuchsia",
-    "dart-pkg/zircon",
-    "runtime/dart/utils",
-    "//third_party/tonic",
-  ]
+  fuchsia_host_bundle("flutter_binaries") {
+    name = "flutter_binaries"
+
+    _flutter_tester_label = "//flutter/shell/testing:testing($host_toolchain)"
+
+    deps = [
+      _flutter_tester_label,
+    ]
+
+    _flutter_tester_bin_path =
+        rebase_path(get_label_info(_flutter_tester_label, "root_out_dir") +
+                    "/flutter_tester")
+
+    sources = [
+      _flutter_tester_bin_path,
+    ]
+  }
+
+  fuchsia_host_bundle("dart_binaries") {
+    name = "dart_binaries"
+
+    _gen_snapshot_to_use = gen_snapshot + "($host_toolchain)"
+    if (is_product) {
+      _gen_snapshot_to_use = gen_snapshot_product + "($host_toolchain)"
+    }
+
+    _kernel_compiler_label = "dart:kernel_compiler($host_toolchain)"
+    _frontend_server_label =
+        "//flutter/flutter_frontend_server:frontend_server($host_toolchain)"
+
+    deps = [
+      _frontend_server_label,
+      _gen_snapshot_to_use,
+      _kernel_compiler_label,
+    ]
+
+    _gen_snapshot_bin_path =
+        rebase_path(get_label_info(_gen_snapshot_to_use, "root_out_dir") + "/" +
+                    get_label_info(_gen_snapshot_to_use, "name"))
+
+    _kernel_compiler_path =
+        rebase_path(get_label_info(_kernel_compiler_label, "root_gen_dir") +
+                    "/kernel_compiler.dart.snapshot")
+
+    _frontend_server_path =
+        rebase_path(get_label_info(_frontend_server_label, "root_gen_dir") +
+                    "/frontend_server.dart.snapshot")
+
+    sources = [
+      _frontend_server_path,
+      _gen_snapshot_bin_path,
+      _kernel_compiler_path,
+    ]
+  }
+
+  group("fuchsia") {
+    deps = [
+      ":dart_binaries",
+      ":flutter_binaries",
+      "dart_runner:dart_aot_${product_suffix}runner",
+      "dart_runner:dart_jit_${product_suffix}runner",
+      "flutter:flutter_aot_${product_suffix}runner",
+      "flutter:flutter_jit_${product_suffix}runner",
+    ]
+  }
 }

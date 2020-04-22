@@ -8,7 +8,9 @@
 
 #include "flutter/assets/directory_asset_bundle.h"
 #include "flutter/fml/file.h"
+#include "flutter/fml/unique_fd.h"
 #include "flutter/runtime/dart_vm.h"
+#include "flutter/shell/common/persistent_cache.h"
 
 namespace flutter {
 
@@ -17,12 +19,15 @@ RunConfiguration RunConfiguration::InferFromSettings(
     fml::RefPtr<fml::TaskRunner> io_worker) {
   auto asset_manager = std::make_shared<AssetManager>();
 
-  asset_manager->PushBack(std::make_unique<DirectoryAssetBundle>(
-      fml::Duplicate(settings.assets_dir)));
+  if (fml::UniqueFD::traits_type::IsValid(settings.assets_dir)) {
+    asset_manager->PushBack(std::make_unique<DirectoryAssetBundle>(
+        fml::Duplicate(settings.assets_dir)));
+  }
 
   asset_manager->PushBack(
       std::make_unique<DirectoryAssetBundle>(fml::OpenDirectory(
           settings.assets_path.c_str(), false, fml::FilePermission::kRead)));
+  PersistentCache::UpdateAssetPath(settings.assets_path);
 
   return {IsolateConfiguration::InferFromSettings(settings, asset_manager,
                                                   io_worker),

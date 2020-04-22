@@ -39,6 +39,7 @@ bool GetSkColorType(int32_t buffer_format,
 AndroidSurfaceSoftware::AndroidSurfaceSoftware() {
   GetSkColorType(WINDOW_FORMAT_RGBA_8888, &target_color_type_,
                  &target_alpha_type_);
+  external_view_embedder_ = std::make_unique<AndroidExternalViewEmbedder>();
 }
 
 AndroidSurfaceSoftware::~AndroidSurfaceSoftware() = default;
@@ -61,7 +62,8 @@ std::unique_ptr<Surface> AndroidSurfaceSoftware::CreateGPUSurface() {
     return nullptr;
   }
 
-  auto surface = std::make_unique<GPUSurfaceSoftware>(this);
+  auto surface =
+      std::make_unique<GPUSurfaceSoftware>(this, true /* render to surface */);
 
   if (!surface->IsValid()) {
     return nullptr;
@@ -132,6 +134,11 @@ bool AndroidSurfaceSoftware::PresentBackingStore(
   ANativeWindow_unlockAndPost(native_window_->handle());
 
   return true;
+}
+
+// |GPUSurfaceSoftwareDelegate|
+ExternalViewEmbedder* AndroidSurfaceSoftware::GetExternalViewEmbedder() {
+  return external_view_embedder_.get();
 }
 
 void AndroidSurfaceSoftware::TeardownOnScreenContext() {}
