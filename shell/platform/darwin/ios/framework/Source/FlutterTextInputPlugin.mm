@@ -13,10 +13,16 @@ static const char _kTextAffinityUpstream[] = "TextAffinity.upstream";
 
 static UIKeyboardType ToUIKeyboardType(NSDictionary* type) {
   NSString* inputType = type[@"name"];
-  if ([inputType isEqualToString:@"TextInputType.text"])
+  if ([inputType isEqualToString:@"TextInputType.address"])
     return UIKeyboardTypeDefault;
+  if ([inputType isEqualToString:@"TextInputType.datetime"])
+    return UIKeyboardTypeNumbersAndPunctuation;
+  if ([inputType isEqualToString:@"TextInputType.emailAddress"])
+    return UIKeyboardTypeEmailAddress;
   if ([inputType isEqualToString:@"TextInputType.multiline"])
     return UIKeyboardTypeDefault;
+  if ([inputType isEqualToString:@"TextInputType.name"])
+    return UIKeyboardTypeNamePhonePad;
   if ([inputType isEqualToString:@"TextInputType.number"]) {
     if ([type[@"signed"] boolValue])
       return UIKeyboardTypeNumbersAndPunctuation;
@@ -26,8 +32,8 @@ static UIKeyboardType ToUIKeyboardType(NSDictionary* type) {
   }
   if ([inputType isEqualToString:@"TextInputType.phone"])
     return UIKeyboardTypePhonePad;
-  if ([inputType isEqualToString:@"TextInputType.emailAddress"])
-    return UIKeyboardTypeEmailAddress;
+  if ([inputType isEqualToString:@"TextInputType.text"])
+    return UIKeyboardTypeDefault;
   if ([inputType isEqualToString:@"TextInputType.url"])
     return UIKeyboardTypeURL;
   return UIKeyboardTypeDefault;
@@ -194,6 +200,10 @@ static UITextContentType ToUITextContentType(NSArray<NSString*>* hints) {
     if ([hint isEqualToString:@"oneTimeCode"]) {
       return UITextContentTypeOneTimeCode;
     }
+
+    if ([hint isEqualToString:@"newPassword"]) {
+      return UITextContentTypeNewPassword;
+    }
   }
 
   return hints[0];
@@ -254,6 +264,9 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   return [[FlutterTextRange allocWithZone:zone] initWithNSRange:self.range];
 }
 
+- (BOOL)isEqualTo:(FlutterTextRange*)other {
+  return NSEqualRanges(self.range, other.range);
+}
 @end
 
 @interface FlutterTextInputView ()
@@ -312,21 +325,27 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   _textInputClient = client;
 }
 
-- (void)setTextInputState:(NSDictionary*)state {
+// Return true if the new input state needs to be synced back to the framework.
+- (BOOL)setTextInputState:(NSDictionary*)state {
   NSString* newText = state[@"text"];
   BOOL textChanged = ![self.text isEqualToString:newText];
   if (textChanged) {
     [self.inputDelegate textWillChange:self];
     [self.text setString:newText];
   }
-
+  BOOL needsEditingStateUpdate = textChanged;
   NSInteger composingBase = [state[@"composingBase"] intValue];
   NSInteger composingExtent = [state[@"composingExtent"] intValue];
   NSRange composingRange = [self clampSelection:NSMakeRange(MIN(composingBase, composingExtent),
                                                             ABS(composingBase - composingExtent))
                                         forText:self.text];
-  self.markedTextRange =
+  FlutterTextRange* newMarkedRange =
       composingRange.length > 0 ? [FlutterTextRange rangeWithNSRange:composingRange] : nil;
+  needsEditingStateUpdate =
+      needsEditingStateUpdate || newMarkedRange == nil
+          ? self.markedTextRange == nil
+          : [newMarkedRange isEqualTo:(FlutterTextRange*)self.markedTextRange];
+  self.markedTextRange = newMarkedRange;
 
   NSInteger selectionBase = [state[@"selectionBase"] intValue];
   NSInteger selectionExtent = [state[@"selectionExtent"] intValue];
@@ -336,9 +355,9 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   NSRange oldSelectedRange = [(FlutterTextRange*)self.selectedTextRange range];
   if (selectedRange.location != oldSelectedRange.location ||
       selectedRange.length != oldSelectedRange.length) {
+    needsEditingStateUpdate = YES;
     [self.inputDelegate selectionWillChange:self];
-    [self setSelectedTextRange:[FlutterTextRange rangeWithNSRange:selectedRange]
-            updateEditingState:NO];
+    [self setSelectedTextRangeLocal:[FlutterTextRange rangeWithNSRange:selectedRange]];
     _selectionAffinity = _kTextAffinityDownstream;
     if ([state[@"selectionAffinity"] isEqualToString:@(_kTextAffinityUpstream)])
       _selectionAffinity = _kTextAffinityUpstream;
@@ -347,10 +366,10 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
 
   if (textChanged) {
     [self.inputDelegate textDidChange:self];
-
-    // For consistency with Android behavior, send an update to the framework.
-    [self updateEditingState];
   }
+
+  // For consistency with Android behavior, send an update to the framework if anything changed.
+  return needsEditingStateUpdate;
 }
 
 - (NSRange)clampSelection:(NSRange)range forText:(NSString*)text {
@@ -381,11 +400,8 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   return [[_selectedTextRange copy] autorelease];
 }
 
-- (void)setSelectedTextRange:(UITextRange*)selectedTextRange {
-  [self setSelectedTextRange:selectedTextRange updateEditingState:YES];
-}
-
-- (void)setSelectedTextRange:(UITextRange*)selectedTextRange updateEditingState:(BOOL)update {
+// Change the range of selected text, without notifying the framework.
+- (void)setSelectedTextRangeLocal:(UITextRange*)selectedTextRange {
   if (_selectedTextRange != selectedTextRange) {
     UITextRange* oldSelectedRange = _selectedTextRange;
     if (self.hasText) {
@@ -396,10 +412,12 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
       _selectedTextRange = [selectedTextRange copy];
     }
     [oldSelectedRange release];
-
-    if (update)
-      [self updateEditingState];
   }
+}
+
+- (void)setSelectedTextRange:(UITextRange*)selectedTextRange {
+  [self setSelectedTextRangeLocal:selectedTextRange];
+  [self updateEditingState];
 }
 
 - (id)insertDictationResultPlaceholder {
@@ -420,26 +438,32 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   return [self.text substringWithRange:textRange];
 }
 
-- (void)replaceRange:(UITextRange*)range withText:(NSString*)text {
-  NSRange replaceRange = ((FlutterTextRange*)range).range;
+// Replace the text within the specified range with the given text,
+// without notifying the framework.
+- (void)replaceRangeLocal:(NSRange)range withText:(NSString*)text {
   NSRange selectedRange = _selectedTextRange.range;
+
   // Adjust the text selection:
   // * reduce the length by the intersection length
   // * adjust the location by newLength - oldLength + intersectionLength
-  NSRange intersectionRange = NSIntersectionRange(replaceRange, selectedRange);
-  if (replaceRange.location <= selectedRange.location)
-    selectedRange.location += text.length - replaceRange.length;
+  NSRange intersectionRange = NSIntersectionRange(range, selectedRange);
+  if (range.location <= selectedRange.location)
+    selectedRange.location += text.length - range.length;
   if (intersectionRange.location != NSNotFound) {
     selectedRange.location += intersectionRange.length;
     selectedRange.length -= intersectionRange.length;
   }
 
-  [self.text replaceCharactersInRange:[self clampSelection:replaceRange forText:self.text]
+  [self.text replaceCharactersInRange:[self clampSelection:range forText:self.text]
                            withString:text];
-  [self setSelectedTextRange:[FlutterTextRange rangeWithNSRange:[self clampSelection:selectedRange
-                                                                             forText:self.text]]
-          updateEditingState:NO];
+  [self setSelectedTextRangeLocal:[FlutterTextRange
+                                      rangeWithNSRange:[self clampSelection:selectedRange
+                                                                    forText:self.text]]];
+}
 
+- (void)replaceRange:(UITextRange*)range withText:(NSString*)text {
+  NSRange replaceRange = ((FlutterTextRange*)range).range;
+  [self replaceRangeLocal:replaceRange withText:text];
   [self updateEditingState];
 }
 
@@ -502,11 +526,11 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
 
   if (markedTextRange.length > 0) {
     // Replace text in the marked range with the new text.
-    [self replaceRange:self.markedTextRange withText:markedText];
+    [self replaceRangeLocal:markedTextRange withText:markedText];
     markedTextRange.length = markedText.length;
   } else {
     // Replace text in the selected range with the new text.
-    [self replaceRange:_selectedTextRange withText:markedText];
+    [self replaceRangeLocal:selectedRange withText:markedText];
     markedTextRange = NSMakeRange(selectedRange.location, markedText.length);
   }
 
@@ -515,9 +539,10 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
 
   NSUInteger selectionLocation = markedSelectedRange.location + markedTextRange.location;
   selectedRange = NSMakeRange(selectionLocation, markedSelectedRange.length);
-  [self setSelectedTextRange:[FlutterTextRange rangeWithNSRange:[self clampSelection:selectedRange
-                                                                             forText:self.text]]
-          updateEditingState:YES];
+  [self setSelectedTextRangeLocal:[FlutterTextRange
+                                      rangeWithNSRange:[self clampSelection:selectedRange
+                                                                    forText:self.text]]];
+  [self updateEditingState];
 }
 
 - (void)unmarkText {
@@ -529,7 +554,17 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
                            toPosition:(UITextPosition*)toPosition {
   NSUInteger fromIndex = ((FlutterTextPosition*)fromPosition).index;
   NSUInteger toIndex = ((FlutterTextPosition*)toPosition).index;
-  return [FlutterTextRange rangeWithNSRange:NSMakeRange(fromIndex, toIndex - fromIndex)];
+  if (toIndex >= fromIndex) {
+    return [FlutterTextRange rangeWithNSRange:NSMakeRange(fromIndex, toIndex - fromIndex)];
+  } else {
+    // toIndex may be less than fromIndex, because
+    // UITextInputStringTokenizer does not handle CJK characters
+    // well in some cases. See:
+    // https://github.com/flutter/flutter/issues/58750#issuecomment-644469521
+    // Swap fromPosition and toPosition to match the behavior of native
+    // UITextViews.
+    return [FlutterTextRange rangeWithNSRange:NSMakeRange(toIndex, fromIndex - toIndex)];
+  }
 }
 
 - (NSUInteger)decrementOffsetPosition:(NSUInteger)position {
@@ -780,22 +815,16 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
     [self replaceRange:_selectedTextRange withText:@""];
 }
 
-@end
-
-/**
- * Hides `FlutterTextInputView` from iOS accessibility system so it
- * does not show up twice, once where it is in the `UIView` hierarchy,
- * and a second time as part of the `SemanticsObject` hierarchy.
- */
-@interface FlutterTextInputViewAccessibilityHider : UIView {
-}
-
-@end
-
-@implementation FlutterTextInputViewAccessibilityHider {
-}
-
 - (BOOL)accessibilityElementsHidden {
+  // We are hiding this accessibility element.
+  // There are 2 accessible elements involved in text entry in 2 different parts of the view
+  // hierarchy. This `FlutterTextInputView` is injected at the top of key window. We use this as a
+  // `UITextInput` protocol to bridge text edit events between Flutter and iOS.
+  //
+  // We also create ur own custom `UIAccessibilityElements` tree with our `SemanticsObject` to
+  // mimic the semantics tree from Flutter. We want the text field to be represented as a
+  // `TextInputSemanticsObject` in that `SemanticsObject` tree rather than in this
+  // `FlutterTextInputView` bridge which doesn't appear above a text field from the Flutter side.
   return YES;
 }
 
@@ -806,7 +835,6 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
 @property(nonatomic, retain) FlutterTextInputView* nonAutofillSecureInputView;
 @property(nonatomic, retain) NSMutableArray<FlutterTextInputView*>* inputViews;
 @property(nonatomic, assign) FlutterTextInputView* activeView;
-@property(nonatomic, retain) FlutterTextInputViewAccessibilityHider* inputHider;
 @end
 
 @implementation FlutterTextInputPlugin
@@ -824,7 +852,6 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
     _inputViews = [[NSMutableArray alloc] init];
 
     _activeView = _nonAutofillInputView;
-    _inputHider = [[FlutterTextInputViewAccessibilityHider alloc] init];
   }
 
   return self;
@@ -834,7 +861,6 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
   [self hideTextInput];
   [_nonAutofillInputView release];
   [_nonAutofillSecureInputView release];
-  [_inputHider release];
   [_inputViews release];
 
   [super dealloc];
@@ -873,19 +899,19 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
            @"The application must have a key window since the keyboard client "
            @"must be part of the responder chain to function");
   _activeView.textInputDelegate = _textInputDelegate;
-  if (![_activeView isDescendantOfView:_inputHider]) {
-    [_inputHider addSubview:_activeView];
+
+  if (_activeView.window != keyWindow) {
+    [keyWindow addSubview:_activeView];
   }
-  [keyWindow addSubview:_inputHider];
   [_activeView becomeFirstResponder];
 }
 
 - (void)hideTextInput {
   [_activeView resignFirstResponder];
-  [_inputHider removeFromSuperview];
 }
 
 - (void)setTextInputClient:(int)client withConfiguration:(NSDictionary*)configuration {
+  UIWindow* keyWindow = [UIApplication sharedApplication].keyWindow;
   NSArray* fields = configuration[@"fields"];
   NSString* clientUniqueId = uniqueIdFromDictionary(configuration);
   bool isSecureTextEntry = [configuration[@"obscureText"] boolValue];
@@ -894,16 +920,19 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
     _activeView = isSecureTextEntry ? _nonAutofillSecureInputView : _nonAutofillInputView;
     [FlutterTextInputPlugin setupInputView:_activeView withConfiguration:configuration];
 
-    if (![_activeView isDescendantOfView:_inputHider]) {
-      [_inputHider addSubview:_activeView];
+    if (_activeView.window != keyWindow) {
+      [keyWindow addSubview:_activeView];
     }
   } else {
     NSAssert(clientUniqueId != nil, @"The client's unique id can't be null");
     for (FlutterTextInputView* view in _inputViews) {
       [view removeFromSuperview];
     }
-    for (UIView* subview in _inputHider.subviews) {
-      [subview removeFromSuperview];
+
+    for (UIView* view in keyWindow.subviews) {
+      if ([view isKindOfClass:[FlutterTextInputView class]]) {
+        [view removeFromSuperview];
+      }
     }
 
     [_inputViews removeAllObjects];
@@ -921,7 +950,7 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
       }
 
       [FlutterTextInputPlugin setupInputView:newInputView withConfiguration:field];
-      [_inputHider addSubview:newInputView];
+      [keyWindow addSubview:newInputView];
     }
   }
 
@@ -978,7 +1007,9 @@ static NSString* uniqueIdFromDictionary(NSDictionary* dictionary) {
 }
 
 - (void)setTextInputEditingState:(NSDictionary*)state {
-  [_activeView setTextInputState:state];
+  if ([_activeView setTextInputState:state]) {
+    [_activeView updateEditingState];
+  }
 }
 
 - (void)clearTextInputClient {

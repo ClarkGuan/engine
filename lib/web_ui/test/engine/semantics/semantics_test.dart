@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // @dart = 2.6
-@TestOn('vm && linux')
+@TestOn('chrome')
 // TODO(nurhan): https://github.com/flutter/flutter/issues/50590
 
 import 'dart:async';
@@ -100,21 +100,21 @@ void _testEngineSemanticsOwner() {
 
   void renderLabel(String label) {
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 20, 20),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
     );
-    builder.updateNode(
+    updateNode(builder,
       id: 1,
       actions: 0,
       flags: 0,
       label: label,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 20, 20),
     );
     semantics().updateSemantics(builder.build());
@@ -130,6 +130,8 @@ void _testEngineSemanticsOwner() {
     expect(tree.length, 2);
     expect(tree[0].id, 0);
     expect(tree[0].element.tagName.toLowerCase(), 'flt-semantics');
+    expect(tree[1].id, 1);
+    expect(tree[1].label, 'Hello');
 
     expectSemanticsTree('''
 <sem style="filter: opacity(0%); color: rgba(0, 0, 0, 0)">
@@ -228,12 +230,12 @@ void _testHeader() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0 | ui.SemanticsFlag.isHeader.index,
       label: 'Header of the page',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -304,11 +306,11 @@ void _testContainer() {
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
     const ui.Rect zeroOffsetRect = ui.Rect.fromLTRB(0, 0, 20, 20);
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: zeroOffsetRect,
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -343,11 +345,11 @@ void _testContainer() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(10, 10, 20, 20),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -384,11 +386,11 @@ void _testVerticalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.scrollUp.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 50, 100),
     );
 
@@ -410,11 +412,11 @@ void _testVerticalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.scrollUp.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 50, 100),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -468,24 +470,24 @@ void _testVerticalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 |
           ui.SemanticsAction.scrollUp.index |
           ui.SemanticsAction.scrollDown.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 50, 100),
       childrenInHitTestOrder: Int32List.fromList(<int>[1, 2, 3]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1, 2, 3]),
     );
 
     for (int id = 1; id <= 3; id++) {
-      builder.updateNode(
+      updateNode(builder,
         id: id,
         actions: 0,
         flags: 0,
-        transform: Matrix4.translationValues(0, 50.0 * id, 0).storage,
+        transform: Matrix4.translationValues(0, 50.0 * id, 0).toFloat64(),
         rect: const ui.Rect.fromLTRB(0, 0, 50, 50),
       );
     }
@@ -536,11 +538,11 @@ void _testHorizontalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.scrollLeft.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -562,11 +564,11 @@ void _testHorizontalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.scrollLeft.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -601,24 +603,24 @@ void _testHorizontalScrolling() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 |
           ui.SemanticsAction.scrollLeft.index |
           ui.SemanticsAction.scrollRight.index,
       flags: 0,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
       childrenInHitTestOrder: Int32List.fromList(<int>[1, 2, 3]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1, 2, 3]),
     );
 
     for (int id = 1; id <= 3; id++) {
-      builder.updateNode(
+      updateNode(builder,
         id: id,
         actions: 0,
         flags: 0,
-        transform: Matrix4.translationValues(50.0 * id, 0, 0).storage,
+        transform: Matrix4.translationValues(50.0 * id, 0, 0).toFloat64(),
         rect: const ui.Rect.fromLTRB(0, 0, 50, 50),
       );
     }
@@ -669,12 +671,12 @@ void _testIncrementables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.increase.index,
       flags: 0,
       value: 'd',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -696,13 +698,13 @@ void _testIncrementables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.increase.index,
       flags: 0,
       value: 'd',
       increasedValue: 'e',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -732,13 +734,13 @@ void _testIncrementables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.decrease.index,
       flags: 0,
       value: 'd',
       decreasedValue: 'c',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -767,7 +769,7 @@ void _testIncrementables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 |
           ui.SemanticsAction.decrease.index |
@@ -776,7 +778,7 @@ void _testIncrementables() {
       value: 'd',
       increasedValue: 'e',
       decreasedValue: 'c',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -799,12 +801,12 @@ void _testTextField() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 | ui.SemanticsFlag.isTextField.index,
       value: 'hello',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -828,12 +830,12 @@ void _testTextField() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 | ui.SemanticsFlag.isTextField.index,
       value: 'hello',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -865,14 +867,14 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.isEnabled.index |
           ui.SemanticsFlag.hasToggledState.index |
           ui.SemanticsFlag.isToggled.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -892,13 +894,13 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasToggledState.index |
           ui.SemanticsFlag.isToggled.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -918,13 +920,13 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasToggledState.index |
           ui.SemanticsFlag.isEnabled.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -944,14 +946,14 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.isEnabled.index |
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isChecked.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -971,13 +973,13 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isChecked.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -997,13 +999,13 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isEnabled.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1023,7 +1025,7 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
@@ -1031,7 +1033,7 @@ void _testCheckables() {
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isInMutuallyExclusiveGroup.index |
           ui.SemanticsFlag.isChecked.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1051,14 +1053,14 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isInMutuallyExclusiveGroup.index |
           ui.SemanticsFlag.isChecked.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1078,14 +1080,14 @@ void _testCheckables() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.isEnabled.index |
           ui.SemanticsFlag.hasCheckedState.index |
           ui.SemanticsFlag.isInMutuallyExclusiveGroup.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1107,14 +1109,14 @@ void _testTappable() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasEnabledState.index |
           ui.SemanticsFlag.isEnabled.index |
           ui.SemanticsFlag.isButton.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1134,13 +1136,13 @@ void _testTappable() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0 | ui.SemanticsAction.tap.index,
       flags: 0 |
           ui.SemanticsFlag.hasEnabledState.index |
           ui.SemanticsFlag.isButton.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1164,12 +1166,12 @@ void _testImage() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0 | ui.SemanticsFlag.isImage.index,
       label: 'Test Image Label',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1189,12 +1191,12 @@ void _testImage() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0 | ui.SemanticsFlag.isImage.index,
       label: 'Test Image Label',
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -1221,11 +1223,11 @@ void _testImage() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0 | ui.SemanticsFlag.isImage.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
 
@@ -1244,11 +1246,11 @@ void _testImage() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       flags: 0 | ui.SemanticsFlag.isImage.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
       childrenInHitTestOrder: Int32List.fromList(<int>[1]),
       childrenInTraversalOrder: Int32List.fromList(<int>[1]),
@@ -1277,12 +1279,12 @@ void _testLiveRegion() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(builder,
       id: 0,
       actions: 0,
       label: 'This is a snackbar',
       flags: 0 | ui.SemanticsFlag.isLiveRegion.index,
-      transform: Matrix4.identity().storage,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
     semantics().updateSemantics(builder.build());
@@ -1302,11 +1304,12 @@ void _testLiveRegion() {
       ..semanticsEnabled = true;
 
     final ui.SemanticsUpdateBuilder builder = ui.SemanticsUpdateBuilder();
-    builder.updateNode(
+    updateNode(
+      builder,
       id: 0,
-      actions: 0,
       flags: 0 | ui.SemanticsFlag.isLiveRegion.index,
-      transform: Matrix4.identity().storage,
+      actions: 0,
+      transform: Matrix4.identity().toFloat64(),
       rect: const ui.Rect.fromLTRB(0, 0, 100, 50),
     );
     semantics().updateSemantics(builder.build());
@@ -1364,4 +1367,69 @@ class SemanticsActionLogger {
       });
     };
   }
+}
+
+/// A facade in front of [ui.SemanticsUpdateBuilder.updateNode] that
+/// supplies default values for semantics attributes.
+void updateNode(
+  ui.SemanticsUpdateBuilder builder, {
+  int id = 0,
+  int flags = 0,
+  int actions = 0,
+  int maxValueLength = 0,
+  int currentValueLength = 0,
+  int textSelectionBase = 0,
+  int textSelectionExtent = 0,
+  int platformViewId = 0,
+  int scrollChildren = 0,
+  int scrollIndex = 0,
+  double scrollPosition = 0.0,
+  double scrollExtentMax = 0.0,
+  double scrollExtentMin = 0.0,
+  double elevation = 0.0,
+  double thickness = 0.0,
+  ui.Rect rect = ui.Rect.zero,
+  String label = '',
+  String hint = '',
+  String value = '',
+  String increasedValue = '',
+  String decreasedValue = '',
+  ui.TextDirection textDirection = ui.TextDirection.ltr,
+  Float64List transform,
+  Int32List childrenInTraversalOrder,
+  Int32List childrenInHitTestOrder,
+  Int32List additionalActions,
+}) {
+  transform ??= Float64List.fromList(Matrix4.identity().storage);
+  childrenInTraversalOrder ??= Int32List(0);
+  childrenInHitTestOrder ??= Int32List(0);
+  additionalActions ??= Int32List(0);
+  builder.updateNode(
+    id: id,
+    flags: flags,
+    actions: actions,
+    maxValueLength: maxValueLength,
+    currentValueLength: currentValueLength,
+    textSelectionBase: textSelectionBase,
+    textSelectionExtent: textSelectionExtent,
+    platformViewId: platformViewId,
+    scrollChildren: scrollChildren,
+    scrollIndex: scrollIndex,
+    scrollPosition: scrollPosition,
+    scrollExtentMax: scrollExtentMax,
+    scrollExtentMin: scrollExtentMin,
+    elevation: elevation,
+    thickness: thickness,
+    rect: rect,
+    label: label,
+    hint: hint,
+    value: value,
+    increasedValue: increasedValue,
+    decreasedValue: decreasedValue,
+    textDirection: textDirection,
+    transform: transform,
+    childrenInTraversalOrder: childrenInTraversalOrder,
+    childrenInHitTestOrder: childrenInHitTestOrder,
+    additionalActions: additionalActions,
+  );
 }
